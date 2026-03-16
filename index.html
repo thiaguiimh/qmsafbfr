@@ -1064,12 +1064,28 @@
                 <button class="close-modal" onclick="closeModal()">&times;</button>
             </div>
             <div class="input-group">
-                <label for="editAdversario">Adversário:</label>
-                <input type="text" id="editAdversario">
+                <label for="editCategoria">Categoria:</label>
+                <select id="editCategoria"></select>
+            </div>
+            <div class="input-group">
+                <label for="editAdversario">Adversário (Botafogo x ?):</label>
+                <select id="editAdversario"></select>
             </div>
             <div class="input-group">
                 <label for="editData">Data:</label>
                 <input type="date" id="editData">
+            </div>
+            <div class="input-group">
+                <label for="editHorario">Horário:</label>
+                <select id="editHorario"></select>
+            </div>
+            <div class="checkbox-container">
+                <input type="checkbox" id="editOutroEvento" onchange="toggleDescricaoEvento('edit')">
+                <label for="editOutroEvento">Outro Evento?</label>
+            </div>
+            <div class="input-group" id="editDescricaoEventoGroup" style="display:none;">
+                <label for="editDescricaoEvento">Descrição do Evento:</label>
+                <input type="text" id="editDescricaoEvento" placeholder="Descreva o evento">
             </div>
             <div class="input-group">
                 <label for="editValor">Valor do Bicho:</label>
@@ -1178,6 +1194,49 @@
         const appContent = document.getElementById('app-content'); 
         const appTitle = document.getElementById('appTitle');
 
+        // --- CONSTANTS ---
+        const CATEGORIAS = [
+            'Fut profissional',
+            'Sub 20 Masc',
+            'Sub 17 Masc',
+            'Sub 15 Masc',
+            'Demais categorias Masc',
+            'Fut profissional Feminino',
+            'Base Feminino'
+        ];
+
+        function getTimeOptions(selected = '') {
+            let opts = '<option value="">Selecione o horário</option>';
+            for (let h = 0; h < 24; h++) {
+                for (let m = 0; m < 60; m += 15) {
+                    const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    opts += `<option value="${time}" ${time === selected ? 'selected' : ''}>${time}</option>`;
+                }
+            }
+            return opts;
+        }
+
+        function getCategoriaOptions(selected = '') {
+            let opts = '<option value="">Selecione a categoria</option>';
+            CATEGORIAS.forEach(cat => {
+                opts += `<option value="${cat}" ${cat === selected ? 'selected' : ''}>${cat}</option>`;
+            });
+            return opts;
+        }
+
+        function computeQuadroMovel(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr + 'T12:00:00');
+            const day = date.getDay(); // 0=Dom, 6=Sab
+            return (day === 0 || day === 6) ? 'CD' : 'AB';
+        }
+
+        function toggleDescricaoEvento(prefix) {
+            const checkbox = document.getElementById(`${prefix}OutroEvento`);
+            const group = document.getElementById(`${prefix}DescricaoEventoGroup`);
+            if (group) group.style.display = checkbox && checkbox.checked ? 'block' : 'none';
+        }
+
         // --- UTILITY FUNCTIONS ---
         function setupSecurity() {
             window.addEventListener('beforeprint', (e) => e.preventDefault());
@@ -1279,9 +1338,13 @@
                     appTitle.textContent = 'Gerenciar Jogos';
                     renderAdminManageGamesPage();
                     break;
-                case 'adminManageUsers': 
+                case 'adminManageUsers':
                     appTitle.textContent = 'Gerenciar Usuários';
                     renderAdminManageUsersPage();
+                    break;
+                case 'adminManageAdversarios':
+                    appTitle.textContent = 'Gerenciar Adversários';
+                    renderAdminManageAdversariosPage();
                     break;
                 default:
                     appTitle.textContent = 'Consulta de Bicho 2025';
@@ -1374,6 +1437,10 @@
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         <span>Gerenciar Usuários</span>
                     </button>
+                    <button id="btn-manage-adversarios" class="admin-card-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>Gerenciar Adversários</span>
+                    </button>
                 </div>
                 <div class="section">
                      <button id="btn-back-to-calculator" class="secondary">Voltar para Calculadora</button> </div>
@@ -1381,6 +1448,7 @@
             document.getElementById('btn-manage-payments').addEventListener('click', () => { currentView = 'adminManagePayments'; renderApp(); });
             document.getElementById('btn-manage-games').addEventListener('click', () => { currentView = 'adminManageGames'; renderApp(); });
             document.getElementById('btn-manage-users-admin').addEventListener('click', () => { currentView = 'adminManageUsers'; renderApp(); });
+            document.getElementById('btn-manage-adversarios').addEventListener('click', () => { currentView = 'adminManageAdversarios'; renderApp(); });
             document.getElementById('btn-back-to-calculator').addEventListener('click', () => { currentView = 'calculator'; renderApp(); });
         }
 
@@ -1415,8 +1483,12 @@
                      <div class="flex justify-between items-center mb-4">
                         <h3>Cadastro de Jogos</h3>
                         <button id="btn-back-to-admin-dash-games" class="secondary">Voltar ao Painel Admin</button> </div>
-                    <div class="input-group"><label for="adminJogo">Adversário:</label><input type="text" id="adminJogo" placeholder="Adversário"></div>
+                    <div class="input-group"><label for="adminCategoria">Categoria:</label><select id="adminCategoria"></select></div>
+                    <div class="input-group"><label for="adminJogo">Adversário (Botafogo x ?):</label><select id="adminJogo"><option value="">Selecione o adversário</option></select></div>
                     <div class="input-group"><label for="adminData">Data do Jogo:</label><input type="date" id="adminData"></div>
+                    <div class="input-group"><label for="adminHorario">Horário:</label><select id="adminHorario"></select></div>
+                    <div class="checkbox-container"><input type="checkbox" id="adminOutroEvento" onchange="toggleDescricaoEvento('admin')"><label for="adminOutroEvento">Outro Evento (não é partida de futebol)?</label></div>
+                    <div class="input-group" id="adminDescricaoEventoGroup" style="display:none;"><label for="adminDescricaoEvento">Descrição do Evento:</label><input type="text" id="adminDescricaoEvento" placeholder="Descreva o evento"></div>
                     <div class="input-group"><label for="adminValor">Valor do Bicho:</label><input type="number" id="adminValor" placeholder="Valor" step="0.01"></div>
                     <div class="input-group"><label for="adminCotas">Total de Cotas:</label><input type="number" id="adminCotas" placeholder="Cotas" step="0.01"></div>
                     <div class="input-group"><label for="adminPagamentoSelectGames">Pagamento:</label><select id="adminPagamentoSelectGames"></select></div>
@@ -1429,7 +1501,7 @@
                     </button>
                     <div class="admin-table-wrapper">
                         <table>
-                            <thead><tr><th>Adversário</th><th>Data</th><th>Valor</th><th>Cotas</th><th>Pagamento</th><th>Sem Teto</th><th>Resultado</th><th>Classif.</th><th>Mult.</th><th>Ações</th></tr></thead>
+                            <thead><tr><th>Categoria</th><th>Adversário</th><th>Data</th><th>Horário</th><th>Evento</th><th>Valor</th><th>Cotas</th><th>Pagamento</th><th>Sem Teto</th><th>Resultado</th><th>Classif.</th><th>Mult.</th><th>Ações</th></tr></thead>
                             <tbody id="tabelaJogos"></tbody>
                         </table>
                     </div>
@@ -1437,7 +1509,7 @@
             `;
             const adminPagamentoSelectGames = document.getElementById('adminPagamentoSelectGames');
             adminPagamentoSelectGames.innerHTML = '<option value="">Selecione</option>';
-             db.ref("pagamentos").once("value", snapshot => {
+            db.ref("pagamentos").once("value", snapshot => {
                 const dados = snapshot.val();
                 if (dados) {
                     Object.entries(dados).forEach(([id, pag]) => {
@@ -1446,8 +1518,19 @@
                 }
             });
 
+            // Populate categoria select
+            const adminCategoriaSelect = document.getElementById('adminCategoria');
+            if (adminCategoriaSelect) adminCategoriaSelect.innerHTML = getCategoriaOptions();
+
+            // Populate horario select
+            const adminHorarioSelect = document.getElementById('adminHorario');
+            if (adminHorarioSelect) adminHorarioSelect.innerHTML = getTimeOptions();
+
+            // Populate adversarios select from Firebase
+            carregarAdversarios();
+
             document.getElementById('btn-back-to-admin-dash-games').addEventListener('click', () => { currentView = 'adminDashboard'; renderApp(); });
-            carregarJogos(); 
+            carregarJogos();
         }
 
         function renderAdminManageUsersPage() {
@@ -1513,6 +1596,99 @@
         }
 
 
+        function renderAdminManageAdversariosPage() {
+            appContent.innerHTML = `
+                <div class="admin-section">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3>Gerenciar Times Adversários</h3>
+                        <button id="btn-back-to-admin-dash-adversarios" class="secondary">Voltar ao Painel Admin</button>
+                    </div>
+                    <div class="admin-manage-payments-form-container">
+                        <div class="input-group">
+                            <label for="adminAdversario">Nome do Time:</label>
+                            <input type="text" id="adminAdversario" placeholder="Ex: Flamengo">
+                        </div>
+                        <button onclick="adicionarAdversario()" style="width: auto; margin-top: 8px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Adicionar Adversário
+                        </button>
+                    </div>
+                    <div class="admin-table-wrapper">
+                        <table>
+                            <thead><tr><th>Nome do Time</th><th>Ações</th></tr></thead>
+                            <tbody id="tabelaAdversarios"></tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            document.getElementById('btn-back-to-admin-dash-adversarios').addEventListener('click', () => { currentView = 'adminDashboard'; renderApp(); });
+            carregarAdversarios();
+        }
+
+        function carregarAdversarios(callback) {
+            const tabela = document.getElementById("tabelaAdversarios");
+            const selectEl = document.getElementById("adminJogo");
+            const editSelectEl = document.getElementById("editAdversario");
+
+            if (tabela) tabela.innerHTML = "";
+            if (selectEl) selectEl.innerHTML = '<option value="">Selecione o adversário</option>';
+            if (editSelectEl) editSelectEl.innerHTML = '<option value="">Selecione o adversário</option>';
+
+            db.ref("adversarios").orderByChild("nome").once("value", snapshot => {
+                const dados = snapshot.val();
+                const adversariosList = [];
+                if (dados) {
+                    Object.entries(dados).forEach(([id, adv]) => {
+                        adversariosList.push({ id, nome: adv.nome });
+                        if (selectEl) selectEl.innerHTML += `<option value="${adv.nome}">${adv.nome}</option>`;
+                        if (editSelectEl) editSelectEl.innerHTML += `<option value="${adv.nome}">${adv.nome}</option>`;
+                        if (tabela) {
+                            tabela.innerHTML += `
+                            <tr>
+                                <td>${adv.nome}</td>
+                                <td>
+                                    <button onclick='editarAdversario("${id}", "${adv.nome.replace(/"/g, '&quot;')}")' class="table-action-button table-edit">Editar</button>
+                                    <button onclick='excluirAdversario("${id}")' class="table-action-button table-delete">Excluir</button>
+                                </td>
+                            </tr>`;
+                        }
+                    });
+                }
+                if (callback) callback(adversariosList);
+            }).catch(error => console.error("Erro ao carregar adversários:", error));
+        }
+
+        function adicionarAdversario() {
+            const input = document.getElementById("adminAdversario");
+            if (!input) return;
+            const nome = input.value.trim();
+            if (!nome) return alert("Preencha o nome do time.");
+            db.ref("adversarios").push({ nome }).then(() => {
+                alert("Adversário adicionado!");
+                input.value = "";
+                carregarAdversarios();
+            }).catch(err => { console.error("Erro: ", err); alert("Erro ao adicionar adversário."); });
+        }
+
+        function editarAdversario(id, atual) {
+            const novoNome = prompt("Editar nome do time:", atual);
+            if (novoNome && novoNome.trim() !== "") {
+                db.ref("adversarios/" + id).update({ nome: novoNome.trim() })
+                .then(carregarAdversarios)
+                .catch(error => console.error("Erro ao editar adversário:", error));
+            } else if (novoNome === "") {
+                alert("O nome não pode ser vazio.");
+            }
+        }
+
+        function excluirAdversario(id) {
+            if (confirm("Tem certeza que deseja excluir este adversário?")) {
+                db.ref("adversarios/" + id).remove()
+                .then(carregarAdversarios)
+                .catch(error => console.error("Erro ao excluir adversário:", error));
+            }
+        }
+
         // --- AUTHENTICATION AND USER MANAGEMENT ---
         function acessarAdmin() {
             if (isAdmin) {
@@ -1537,28 +1713,38 @@
         }
 
         function adicionarJogo() {
-            const adversario = document.getElementById("adminJogo").value.trim();
+            const adversario = document.getElementById("adminJogo").value;
             const data = document.getElementById("adminData").value;
+            const horario = document.getElementById("adminHorario").value;
+            const outroEvento = document.getElementById("adminOutroEvento").checked;
+            const descricaoEvento = outroEvento ? document.getElementById("adminDescricaoEvento").value.trim() : '';
+            const categoria = document.getElementById("adminCategoria").value;
             const valor = parseFloat(document.getElementById("adminValor").value);
             const cotas = parseFloat(document.getElementById("adminCotas").value);
-            const pagamentoId = document.getElementById("adminPagamentoSelectGames").value; 
-            const noCeiling = document.getElementById("adminNoCeiling").checked; 
+            const pagamentoId = document.getElementById("adminPagamentoSelectGames").value;
+            const noCeiling = document.getElementById("adminNoCeiling").checked;
             const resultado = document.getElementById("adminResultado").value;
             const classificacao = document.getElementById("adminClassificacao").value.trim();
             const bichoMultiplicado = document.getElementById("adminBichoMultiplicado").value.trim();
+            const quadroMovel = computeQuadroMovel(data);
 
-            if (!adversario || !data || isNaN(valor) || valor <= 0 || isNaN(cotas) || cotas <= 0 || !pagamentoId) {
-                alert("Preencha todos os campos obrigatórios corretamente!"); return;
+            if (!adversario || !data || !horario || isNaN(valor) || valor <= 0 || isNaN(cotas) || cotas <= 0 || !pagamentoId) {
+                alert("Preencha todos os campos obrigatórios corretamente (adversário, data, horário, valor, cotas e pagamento)!"); return;
             }
             db.ref("jogos").push({
-                adversario, data, valor, cotas, pagamentoId, noCeiling, 
+                adversario, data, horario, outroEvento, descricaoEvento, categoria, valor, cotas, pagamentoId, noCeiling, quadroMovel,
                 resultado: resultado === "Não Aplicável" ? "" : resultado,
                 classificacao, bichoMultiplicado
             }).then(() => {
                 alert("Jogo adicionado!");
-                ['adminJogo', 'adminData', 'adminValor', 'adminCotas', 'adminPagamentoSelectGames', 'adminClassificacao', 'adminBichoMultiplicado'].forEach(id => document.getElementById(id).value = '');
+                ['adminData', 'adminValor', 'adminCotas', 'adminClassificacao', 'adminBichoMultiplicado', 'adminDescricaoEvento'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+                document.getElementById("adminJogo").value = '';
+                document.getElementById("adminHorario").value = '';
+                document.getElementById("adminCategoria").value = '';
                 document.getElementById("adminResultado").value = "Não Aplicável";
                 document.getElementById("adminNoCeiling").checked = false;
+                document.getElementById("adminOutroEvento").checked = false;
+                toggleDescricaoEvento('admin');
                 carregarJogos();
             }).catch(err => { console.error("Erro: ", err); alert("Erro ao adicionar jogo."); });
         }
@@ -1628,15 +1814,17 @@
                         const jogosArray = Object.entries(dadosJogos).map(([id, jogo]) => ({ id, ...jogo }));
                         jogosArray.sort((a, b) => new Date(b.data) - new Date(a.data));
                         jogosArray.forEach(jogoComId => {
-                            const { id, ...jogo } = jogoComId; 
+                            const { id, ...jogo } = jogoComId;
                             const nomePagamento = pagamentos[jogo.pagamentoId]?.descricao || "N/A";
+                            const eventoInfo = jogo.outroEvento ? (jogo.descricaoEvento || 'Outro evento') : '-';
                             tabela.innerHTML += `
                             <tr>
-                                <td>${jogo.adversario}</td><td>${formatarData(jogo.data)}</td><td>R$ ${formatarMoeda(jogo.valor)}</td>
+                                <td>${jogo.categoria || '-'}</td><td>Botafogo x ${jogo.adversario}</td><td>${formatarData(jogo.data)}</td><td>${jogo.horario || '-'}</td>
+                                <td>${eventoInfo}</td><td>R$ ${formatarMoeda(jogo.valor)}</td>
                                 <td>${jogo.cotas}</td><td>${nomePagamento}</td><td>${jogo.noCeiling ? '✓' : '✗'}</td>
                                 <td>${jogo.resultado || '-'}</td><td>${jogo.classificacao || '-'}</td><td>${jogo.bichoMultiplicado || '-'}</td>
                                 <td>
-                                    <button onclick='openEditModal("${id}", ${JSON.stringify(jogo)})' class="table-action-button table-edit">Editar</button>
+                                    <button onclick='openEditModal("${id}", ${JSON.stringify(jogo).replace(/'/g, "&#39;")})' class="table-action-button table-edit">Editar</button>
                                     <button onclick='excluirJogo("${id}")' class="table-action-button table-delete">Excluir</button>
                                 </td>
                             </tr>`;
@@ -1794,11 +1982,13 @@
                     container.innerHTML += `
                     <div class='card'>
                         <div class="card-content">
-                            <h4> ${jogo.adversario}
+                            <h4>Botafogo x ${jogo.adversario}
                                 ${jogo.bichoMultiplicado ? `<span class="bicho-multiplicado-tag">${jogo.bichoMultiplicado}</span>` : ''}
                                 ${jogo.noCeiling ? '<span class="no-ceiling-tag">Sem teto</span>' : ''}
                             </h4>
-                            <p>Data: ${formatarData(jogo.data)}</p>
+                            ${jogo.categoria ? `<p style="font-size:12px; font-weight:500; color:var(--text-secondary);">${jogo.categoria}</p>` : ''}
+                            <p>Data: ${formatarData(jogo.data)}${jogo.horario ? ` &bull; ${jogo.horario}` : ''}</p>
+                            ${jogo.outroEvento && jogo.descricaoEvento ? `<p style="color:var(--warning); font-weight:500;">Evento: ${jogo.descricaoEvento}</p>` : ''}
                             ${jogo.resultado && jogo.resultado !== "Não Aplicável" ? `<p class="game-result ${resultadoClasse}" style="color: ${resultadoColor}; font-weight: 500;">Resultado: ${jogo.resultado}</p>` : ''}
                             ${jogo.classificacao ? `<p>Classificação: ${jogo.classificacao}</p>` : ''}
                             <div class="card-footer">
@@ -1820,16 +2010,52 @@
 
         function openEditModal(id, jogo) {
             currentEditingGameId = id;
-            document.getElementById("editAdversario").value = jogo.adversario;
+
+            // Populate categoria select
+            const editCategoriaSelect = document.getElementById("editCategoria");
+            editCategoriaSelect.innerHTML = getCategoriaOptions(jogo.categoria || '');
+
+            // Populate adversario select from Firebase
+            const editAdversarioSelect = document.getElementById("editAdversario");
+            editAdversarioSelect.innerHTML = '<option value="">Carregando...</option>';
+            db.ref("adversarios").orderByChild("nome").once("value", snapAdv => {
+                editAdversarioSelect.innerHTML = '<option value="">Selecione o adversário</option>';
+                const advData = snapAdv.val();
+                let found = false;
+                if (advData) {
+                    Object.values(advData).forEach(adv => {
+                        const sel = adv.nome === jogo.adversario ? 'selected' : '';
+                        if (sel) found = true;
+                        editAdversarioSelect.innerHTML += `<option value="${adv.nome}" ${sel}>${adv.nome}</option>`;
+                    });
+                }
+                // If old adversario not in list, add it as option
+                if (!found && jogo.adversario) {
+                    editAdversarioSelect.innerHTML += `<option value="${jogo.adversario}" selected>${jogo.adversario} (anterior)</option>`;
+                }
+            });
+
             document.getElementById("editData").value = jogo.data;
+
+            // Populate horario select
+            const editHorarioSelect = document.getElementById("editHorario");
+            editHorarioSelect.innerHTML = getTimeOptions(jogo.horario || '');
+
+            // Outro evento
+            const editOutroEvento = document.getElementById("editOutroEvento");
+            editOutroEvento.checked = jogo.outroEvento || false;
+            document.getElementById("editDescricaoEvento").value = jogo.descricaoEvento || '';
+            toggleDescricaoEvento('edit');
+
             document.getElementById("editValor").value = jogo.valor;
             document.getElementById("editCotas").value = jogo.cotas;
+
             const editPagamentoSelect = document.getElementById("editPagamentoSelect");
-            const targetPagamentoId = jogo.pagamentoId; 
-            editPagamentoSelect.innerHTML = '<option value="">Carregando...</option>'; 
+            const targetPagamentoId = jogo.pagamentoId;
+            editPagamentoSelect.innerHTML = '<option value="">Carregando...</option>';
             db.ref("pagamentos").once("value", snapshot => {
                 const dados = snapshot.val();
-                editPagamentoSelect.innerHTML = '<option value="">Selecione</option>'; 
+                editPagamentoSelect.innerHTML = '<option value="">Selecione</option>';
                 if (dados) {
                     Object.entries(dados).forEach(([pid, pag]) => {
                         editPagamentoSelect.innerHTML += `<option value="${pid}" ${pid === targetPagamentoId ? 'selected' : ''}>${pag.descricao}</option>`;
@@ -1840,7 +2066,7 @@
                 }
             });
 
-            document.getElementById("editNoCeiling").checked = jogo.noCeiling || false; 
+            document.getElementById("editNoCeiling").checked = jogo.noCeiling || false;
             document.getElementById("editResultado").value = jogo.resultado || "Não Aplicável";
             document.getElementById("editClassificacao").value = jogo.classificacao || "";
             document.getElementById("editBichoMultiplicado").value = jogo.bichoMultiplicado || "";
@@ -1849,21 +2075,26 @@
 
         function saveGameChanges() {
             if (!currentEditingGameId) return;
-            const adversario = document.getElementById("editAdversario").value.trim();
+            const adversario = document.getElementById("editAdversario").value;
             const data = document.getElementById("editData").value;
+            const horario = document.getElementById("editHorario").value;
+            const outroEvento = document.getElementById("editOutroEvento").checked;
+            const descricaoEvento = outroEvento ? document.getElementById("editDescricaoEvento").value.trim() : '';
+            const categoria = document.getElementById("editCategoria").value;
             const valor = parseFloat(document.getElementById("editValor").value);
             const cotas = parseFloat(document.getElementById("editCotas").value);
             const pagamentoId = document.getElementById("editPagamentoSelect").value;
-            const noCeiling = document.getElementById("editNoCeiling").checked; 
+            const noCeiling = document.getElementById("editNoCeiling").checked;
             const resultado = document.getElementById("editResultado").value;
             const classificacao = document.getElementById("editClassificacao").value.trim();
             const bichoMultiplicado = document.getElementById("editBichoMultiplicado").value.trim();
+            const quadroMovel = computeQuadroMovel(data);
 
             if (!adversario || !data || isNaN(valor) || valor <= 0 || isNaN(cotas) || cotas <= 0 || !pagamentoId) {
                 alert("Preencha todos os campos obrigatórios corretamente!"); return;
             }
             db.ref("jogos/" + currentEditingGameId).update({
-                adversario, data, valor, cotas, pagamentoId, noCeiling, 
+                adversario, data, horario, outroEvento, descricaoEvento, categoria, valor, cotas, pagamentoId, noCeiling, quadroMovel,
                 resultado: resultado === "Não Aplicável" ? "" : resultado,
                 classificacao, bichoMultiplicado
             }).then(() => {
